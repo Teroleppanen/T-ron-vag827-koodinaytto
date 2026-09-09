@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>827 koodinäyttäjä</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="screen-init" class="screen active">
+    <div class="init-text">GPS haetaan…</div>
+  </div>
+
+  <div id="screen-uncertain" class="screen">
+    <div class="uncertain-text">GPS EPÄVARMA</div>
+  </div>
+
+  <div id="screen-main" class="screen">
+    <div class="metrics" id="metrics">—</div>
+    <div class="symbol" id="symbol"></div>
+    <div class="footer" id="footer">
+      <span id="footer-paalu"></span>
+      <span id="footer-dir" class="dir"></span>
+      <span id="footer-gps"></span>
+    </div>
+  </div>
+
+  <div id="debug-panel" class="debug-panel">
+    <pre id="debug-content"></pre>
+  </div>
+
+  <script>window.ROAD_FILE = "data/road827.json";</script>
+  <script src="vendor/proj4.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/symbols.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
