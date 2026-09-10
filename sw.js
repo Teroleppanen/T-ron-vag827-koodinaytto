@@ -2,7 +2,11 @@
  * Minimal offline cache for the vag 827 code display. One road, one object,
  * one small JSON file - nothing dynamic, nothing fetched at drive time.
  */
-var CACHE_NAME = "vag827-v2";
+var CACHE_NAME = "vag827-v3";
+// teroleppanen.github.io on yksi origin kaikille Pages-projekteille, joten
+// caches.keys() palauttaa myos muiden sovellusten valimuistit. Siivotaan
+// vain omat, muuten tama tuhoaa esim. BD392:n offline-datan.
+var CACHE_PREFIX = "vag827-";
 var ASSETS = [
   "./",
   "index.html",
@@ -31,7 +35,7 @@ self.addEventListener("activate", function (event) {
   event.waitUntil(
     caches.keys().then(function (keys) {
       return Promise.all(
-        keys.filter(function (k) { return k !== CACHE_NAME; })
+        keys.filter(function (k) { return k.indexOf(CACHE_PREFIX) === 0 && k !== CACHE_NAME; })
           .map(function (k) { return caches.delete(k); })
       );
     }).then(function () { return self.clients.claim(); })
