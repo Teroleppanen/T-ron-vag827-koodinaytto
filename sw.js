@@ -2,7 +2,7 @@
  * Minimal offline cache for the vag 827 code display. One road, one object,
  * one small JSON file - nothing dynamic, nothing fetched at drive time.
  */
-var CACHE_NAME = "vag827-v1";
+var CACHE_NAME = "vag827-v2";
 var ASSETS = [
   "./",
   "index.html",
