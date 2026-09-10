@@ -28,10 +28,27 @@
 
   if (DEBUG) el.debugPanel.classList.add("active");
 
+  function paintUncertain() {
+    var box = el.uncertain.querySelector(".uncertain-text");
+    if (!box) return;
+    if (state.geoError) {
+      box.textContent = state.geoError;
+      var h = el.uncertain.querySelector(".uncertain-hint");
+      if (!h) {
+        h = document.createElement("div");
+        h.className = "uncertain-hint";
+        el.uncertain.appendChild(h);
+      }
+      h.textContent = state.geoHint || "";
+    } else {
+      box.textContent = "GPS EPÄVARMA";
+    }
+  }
+
   function showScreen(name) {
     [el.init, el.uncertain, el.main].forEach(function (s) { s.classList.remove("active"); });
     if (name === "init") el.init.classList.add("active");
-    if (name === "uncertain") el.uncertain.classList.add("active");
+    if (name === "uncertain") { el.uncertain.classList.add("active"); paintUncertain(); }
     if (name === "main") el.main.classList.add("active");
   }
 
@@ -116,11 +133,24 @@
   // window.dispatchEvent(new CustomEvent('bd392:mockposition', {detail:{coords:{...}}}))
   window.addEventListener("bd392:mockposition", function (e) { onPosition(e.detail); });
 
-  function onPositionError() {
+  // Aiemmin tama nielaisi virheen kokonaan, jolloin ruutu jai punaiseksi
+  // kertomatta miksi. Kentalla se on mahdoton diagnosoida: lupa evatty,
+  // sijaintipalvelut pois, tai vain hidas fix nayttavat kaikki samalta.
+  function onPositionError(err) {
     state.lastAccuracy = null;
+    var syyt = { 1: "PAIKANNUSLUPA EVATTY", 2: "GPS EI SAA SIJAINTIA", 3: "GPS HIDAS" };
+    state.geoError = (err && syyt[err.code]) || "GPS VIRHE";
+    state.geoErrorAt = nowMs();
+    if (err && err.code === 1) {
+      state.geoHint = "Salli sijainti: Asetukset, Sijaintipalvelut, Safari-verkkosivustot. " +
+                      "Sitten aA-painike, Verkkosivuston asetukset, Sijainti, Salli.";
+    }
+    render();
   }
 
   function onPosition(pos) {
+    state.geoError = null;
+    state.geoHint = null;
     var c = pos.coords;
     var t = pos.timestamp || nowMs();
 
@@ -326,7 +356,13 @@
       el.footerDir.textContent = "";
     }
 
-    el.footerPaalu.textContent = "paalu " + Core.formatMeters(state.lastAcceptedFix.m);
+    // Paalu kaytti aiemmin raakaa lastAcceptedFix.m:aa, kun taas ylla oleva
+    // matka seuraavaan tapahtumaan kayttaa ekstrapoloitua displayM:aa. Paalu
+    // oli siksi aina yhden fixivalin jaljessa (kentalla n. 30 m 80 km/h:ssa,
+    // mitattu fixivali 80-1200 ms) eivatka luvut summautuneet tapahtuman
+    // paaluun. Sama sijainti molempiin; DISPLAY_INTERPOLATION_CAP_MS pysyy
+    // ennallaan, joten pysahtyessa ei tule ylilyontia.
+    el.footerPaalu.textContent = "paalu " + Core.formatMeters(displayM);
     el.footerGps.textContent = "GPS ±" + Math.round(state.lastAccuracy) + " m";
   }
 

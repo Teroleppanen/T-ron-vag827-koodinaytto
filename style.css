@@ -116,3 +116,14 @@ html, body {
   white-space: pre-wrap;
   font-family: "Consolas", monospace;
 }
+
+/* Paikannusvirheen syy ja ohje epavarma-ruudulla */
+.uncertain-hint {
+  margin-top: 1.2rem;
+  padding: 0 1.5rem;
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 400;
+  opacity: 0.85;
+  max-width: 32rem;
+}
