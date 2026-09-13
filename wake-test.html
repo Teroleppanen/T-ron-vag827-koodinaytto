@@ -97,6 +97,9 @@
     kirjaa("sivu " + document.visibilityState);
     if (document.visibilityState === "visible" && !paalla) pyyda("paluu näkyviin");
   });
+  // Automaattilukituksen aika lasketaan viimeisesta kosketuksesta, joten
+  // kosketukset kirjataan: silloin sammumisen voi suhteuttaa niihin.
+  document.addEventListener("touchstart", function () { kirjaa("kosketus"); }, { passive: true });
   document.getElementById("nappi").addEventListener("click", function () {
     pyyda("napin painallus");
   });
