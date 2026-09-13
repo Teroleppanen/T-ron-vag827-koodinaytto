@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Näytön hereilläpitotesti</title>
+<style>
+  body { margin: 0; padding: 1rem; font-family: -apple-system, system-ui, sans-serif;
+         background: #111; color: #eee; font-size: 1.05rem; line-height: 1.4; }
+  h1 { font-size: 1.3rem; margin: 0 0 .8rem; }
+  #tila { font-size: 2.2rem; font-weight: 700; padding: .8rem; border-radius: .5rem;
+          text-align: center; margin-bottom: .8rem; }
+  .paalla { background: #1f6f35; }
+  .pois { background: #8a1f1f; }
+  #aika { text-align: center; font-size: 1.4rem; margin-bottom: .8rem; }
+  button { width: 100%; font-size: 1.2rem; padding: .9rem; border: 0; border-radius: .5rem;
+           background: #2d5fa8; color: #fff; margin-bottom: 1rem; }
+  ol { padding-left: 1.2rem; }
+  #info { font-size: .85rem; opacity: .8; word-break: break-word; }
+  #loki { list-style: none; padding: 0; font-family: ui-monospace, Menlo, monospace; font-size: .95rem; }
+  #loki li { padding: .35rem 0; border-bottom: 1px solid #333; }
+  .ok { color: #7ee29a; }
+  .bad { color: #ff8a8a; }
+</style>
+</head>
+<body>
+<h1>Näytön hereilläpitotesti</h1>
+<div id="tila" class="pois">EI PÄÄLLÄ</div>
+<div id="aika">0 s</div>
+<button id="nappi">Pyydä uudelleen napilla</button>
+
+<ol>
+  <li>Aseta testin ajaksi Automaattilukitus 30 sekuntiin.</li>
+  <li>Avaa tämä sivu ja laske puhelin kädestä. Älä koske ruutuun.</li>
+  <li>Jos näyttö sammuu, herätä puhelin ja ota kuvakaappaus lokista.</li>
+  <li>Paina sitten nappia, laske puhelin taas ja odota. Kuvakaappaus uudelleen.</li>
+</ol>
+
+<div id="info"></div>
+<h1>Loki</h1>
+<ul id="loki"></ul>
+
+<script>
+(function () {
+  "use strict";
+  var t0 = Date.now();
+  var lock = null;
+  var paalla = false;
+  var loki = document.getElementById("loki");
+
+  function sek() { return Math.round((Date.now() - t0) / 1000) + " s"; }
+
+  function kirjaa(viesti, luokka) {
+    var li = document.createElement("li");
+    li.textContent = sek() + "  " + viesti;
+    if (luokka) li.className = luokka;
+    loki.insertBefore(li, loki.firstChild);
+  }
+
+  function nayta() {
+    var el = document.getElementById("tila");
+    el.textContent = paalla ? "PÄÄLLÄ" : "EI PÄÄLLÄ";
+    el.className = paalla ? "paalla" : "pois";
+    document.getElementById("aika").textContent = sek();
+  }
+
+  function pyyda(tapa) {
+    if (!("wakeLock" in navigator)) {
+      kirjaa("EI TUETTU: selaimessa ei ole wakeLock-rajapintaa (" + tapa + ")", "bad");
+      return;
+    }
+    navigator.wakeLock.request("screen").then(function (l) {
+      lock = l;
+      paalla = true;
+      kirjaa("LUKKO SAATU (" + tapa + ")", "ok");
+      l.addEventListener("release", function () {
+        paalla = false;
+        kirjaa("LUKKO VAPAUTETTU, sivu " + document.visibilityState, "bad");
+        nayta();
+      });
+      nayta();
+    }).catch(function (e) {
+      paalla = false;
+      kirjaa("HYLÄTTY (" + tapa + "): " + e.name + ": " + e.message, "bad");
+      nayta();
+    });
+  }
+
+  var kotinaytto = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  document.getElementById("info").textContent =
+    (kotinaytto ? "Avattu kotinäytön kuvakkeesta" : "Avattu selaimen välilehdessä") +
+    " | wakeLock-rajapinta: " + ("wakeLock" in navigator ? "on" : "EI") +
+    " | " + navigator.userAgent;
+
+  document.addEventListener("visibilitychange", function () {
+    kirjaa("sivu " + document.visibilityState);
+    if (document.visibilityState === "visible" && !paalla) pyyda("paluu näkyviin");
+  });
+  document.getElementById("nappi").addEventListener("click", function () {
+    pyyda("napin painallus");
+  });
+
+  setInterval(nayta, 1000);
+  pyyda("automaattinen, kuten sovelluksessa");
+})();
+</script>
+</body>
+</html>
