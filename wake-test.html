@@ -13,6 +13,11 @@
   .paalla { background: #1f6f35; }
   .pois { background: #8a1f1f; }
   #aika { text-align: center; font-size: 1.4rem; margin-bottom: .8rem; }
+  #tulos { font-size: 1.3rem; font-weight: 700; padding: .8rem; border-radius: .5rem;
+           text-align: center; margin-bottom: .8rem; background: #333; }
+  #tulos.tulos-ok { background: #1f6f35; }
+  #tulos.tulos-bad { background: #8a1f1f; }
+  #tulos small { display: block; font-weight: 400; font-size: 1rem; margin-top: .3rem; }
   button { width: 100%; font-size: 1.2rem; padding: .9rem; border: 0; border-radius: .5rem;
            background: #2d5fa8; color: #fff; margin-bottom: 1rem; }
   ol { padding-left: 1.2rem; }
@@ -26,14 +31,16 @@
 <body>
 <h1>Näytön hereilläpitotesti</h1>
 <div id="tila" class="pois">EI PÄÄLLÄ</div>
+<div id="tulos">Tulos: paina nappia</div>
 <div id="aika">0 s</div>
-<button id="nappi">Pyydä uudelleen napilla</button>
+<button id="nappi">Pyydä lukko napilla</button>
 
 <ol>
-  <li>Aseta testin ajaksi Automaattilukitus 30 sekuntiin.</li>
-  <li>Avaa tämä sivu ja laske puhelin kädestä. Älä koske ruutuun.</li>
-  <li>Jos näyttö sammuu, herätä puhelin ja ota kuvakaappaus lokista.</li>
-  <li>Paina sitten nappia, laske puhelin taas ja odota. Kuvakaappaus uudelleen.</li>
+  <li>Aseta Automaattilukitus 30 sekuntiin.</li>
+  <li><b>Testi B:</b> avaa tämä sivu, käy jossain toisessa sovelluksessa ja palaa tänne. <b>Testi A:</b> ohita tämä kohta.</li>
+  <li>Paina sinistä nappia ja laske puhelin pöydälle. Älä koske ruutuun äläkä näppäimiin.</li>
+  <li>Odota kunnes tulos muuttuu vihreäksi tai näyttö sammuu, enintään 90 s.</li>
+  <li>Ota kuvakaappaus. Jos näyttö sammui, herätä puhelin ensin.</li>
 </ol>
 
 <div id="info"></div>
@@ -43,9 +50,15 @@
 <script>
 (function () {
   "use strict";
+  var RAJA_S = 60;
   var t0 = Date.now();
   var lock = null;
   var paalla = false;
+  var viimeKosketus = null;
+  var lukkoHetki = null;
+  var kaviTaustalla = false;   // sivu piilossa ennen kuin lukko saatiin
+  var testiB = false;
+  var tulosLukittu = false;
   var loki = document.getElementById("loki");
 
   function sek() { return Math.round((Date.now() - t0) / 1000) + " s"; }
@@ -57,11 +70,38 @@
     loki.insertBefore(li, loki.firstChild);
   }
 
+  // Automaattilukituksen aika lasketaan viimeisesta kosketuksesta, joten
+  // tulos mitataan siita eika sivun avaamisesta.
+  function ilmanKosketusta() {
+    var ref = Math.max(viimeKosketus || 0, lukkoHetki || 0);
+    return Math.round((Date.now() - ref) / 1000);
+  }
+
+  function asetaTulos(teksti, luokka) {
+    var el = document.getElementById("tulos");
+    el.textContent = teksti;
+    var s = document.createElement("small");
+    s.textContent = testiB ? "Testi B: sivu kävi taustalla ennen lukkoa"
+                           : "Testi A: sivu koko ajan edessä";
+    el.appendChild(s);
+    el.className = luokka || "";
+  }
+
   function nayta() {
     var el = document.getElementById("tila");
     el.textContent = paalla ? "PÄÄLLÄ" : "EI PÄÄLLÄ";
     el.className = paalla ? "paalla" : "pois";
     document.getElementById("aika").textContent = sek();
+    if (paalla && !tulosLukittu) {
+      var n = ilmanKosketusta();
+      if (n >= RAJA_S) {
+        tulosLukittu = true;
+        asetaTulos("PITI: yli " + RAJA_S + " s ilman kosketusta", "tulos-ok");
+        kirjaa("TULOS PITI", "ok");
+      } else {
+        asetaTulos("Lukko päällä, ilman kosketusta " + n + " / " + RAJA_S + " s");
+      }
+    }
   }
 
   function pyyda(tapa) {
@@ -72,10 +112,18 @@
     navigator.wakeLock.request("screen").then(function (l) {
       lock = l;
       paalla = true;
+      lukkoHetki = Date.now();
+      testiB = kaviTaustalla;
+      tulosLukittu = false;
       kirjaa("LUKKO SAATU (" + tapa + ")", "ok");
       l.addEventListener("release", function () {
         paalla = false;
-        kirjaa("LUKKO VAPAUTETTU, sivu " + document.visibilityState, "bad");
+        var n = ilmanKosketusta();
+        kirjaa("LUKKO VAPAUTETTU " + n + " s kosketuksesta, sivu " + document.visibilityState, "bad");
+        if (!tulosLukittu) {
+          tulosLukittu = true;
+          asetaTulos("SAMMUI: " + n + " s viimeisestä kosketuksesta", "tulos-bad");
+        }
         nayta();
       });
       nayta();
@@ -95,11 +143,12 @@
 
   document.addEventListener("visibilitychange", function () {
     kirjaa("sivu " + document.visibilityState);
-    if (document.visibilityState === "visible" && !paalla) pyyda("paluu näkyviin");
+    if (document.visibilityState === "hidden" && !paalla && lukkoHetki === null) kaviTaustalla = true;
   });
-  // Automaattilukituksen aika lasketaan viimeisesta kosketuksesta, joten
-  // kosketukset kirjataan: silloin sammumisen voi suhteuttaa niihin.
-  document.addEventListener("touchstart", function () { kirjaa("kosketus"); }, { passive: true });
+  document.addEventListener("touchstart", function () {
+    viimeKosketus = Date.now();
+    kirjaa("kosketus");
+  }, { passive: true });
   document.getElementById("nappi").addEventListener("click", function () {
     pyyda("napin painallus");
   });
